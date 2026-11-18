@@ -73,7 +73,16 @@ private:
     // underflows, so sift_up must stop at i == 0.
     // Clue: in sift_down, the right child may not exist: check
     // 2*i+2 < data_.size() before reading it. Swap with the SMALLER child.
-
+    void sift_up(std::size_t i) {
+        while (i > 0) {
+            std::size_t parent = (i - 1) / 2;
+            if (!less_(data_[i], data_[parent])) {
+                break;
+            }
+            std::swap(data_[i], data_[parent]);
+            i = parent;
+        }
+    }
     std::vector<T> data_;
     Less           less_;
 };
