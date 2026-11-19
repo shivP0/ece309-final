@@ -193,4 +193,20 @@ TEST(index_ranking_and_ties) {
 // Your tests (at least 12 more). Spec §8 lists what they must cover.
 // =========================================================================
 
+TEST(heap_top_k_cases) {
+    std::vector<int> nums = {4, 1, 7, 3};
+
+    // [4, 1, 7, 3] with k = 2 -> [7, 4]
+    CHECK_EQ(top_k(nums, 2), (std::vector<int>{7, 4}));
+
+    // k = 0 -> empty result
+    CHECK(top_k(nums, 0).empty());
+
+    // Empty input -> empty result
+    CHECK(top_k(std::vector<int>{}, 3).empty());
+
+    // k larger than input size -> all items, largest first
+    CHECK_EQ(top_k(nums, 10), (std::vector<int>{7, 4, 3, 1}));
+}
+
 int main(int argc, char** argv) { return mt::run_all(argc, argv); }
