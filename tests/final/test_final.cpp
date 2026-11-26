@@ -209,4 +209,42 @@ TEST(heap_top_k_cases) {
     CHECK_EQ(top_k(nums, 10), (std::vector<int>{7, 4, 3, 1}));
 }
 
+TEST(lru_capacity_zero) {
+    LruCache<std::string, int> c(0);
+    c.put("a", 1);
+
+    // Size stays 0 and no eviction occurs
+    CHECK_EQ(c.size(), std::size_t{0});
+    CHECK_EQ(c.stats().evictions, std::size_t{0});
+
+    // contains() returns false
+    CHECK(!c.contains("a"));
+
+    // get() returns nullptr and counts one miss
+    CHECK(c.get("a") == nullptr);
+    CHECK_EQ(c.stats().misses, std::size_t{1});
+    CHECK_EQ(c.stats().hits, std::size_t{0});
+}
+
+TEST(lru_capacity_one) {
+    LruCache<std::string, int> c(1);
+
+    // 1. Insert "a"
+    c.put("a", 1);
+
+    // 2. Insert "b" -> evicts "a"
+    c.put("b", 2);
+    CHECK(!c.contains("a"));
+    CHECK(c.contains("b"));
+    CHECK_EQ(c.size(), std::size_t{1});
+    CHECK_EQ(c.stats().evictions, std::size_t{1});
+
+    // 3. Update "b" with a different value -> value changes, evictions stays 1
+    c.put("b", 20);
+    REQUIRE(c.get("b") != nullptr);
+    CHECK_EQ(*c.get("b"), 20);
+    CHECK_EQ(c.size(), std::size_t{1});
+    CHECK_EQ(c.stats().evictions, std::size_t{1});
+}
+
 int main(int argc, char** argv) { return mt::run_all(argc, argv); }
