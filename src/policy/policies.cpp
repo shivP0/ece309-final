@@ -4,46 +4,40 @@
 
 #include <utility>
 
-AllowlistPolicy::AllowlistPolicy(const std::vector<std::string>& programs) {
-    // TODO: copy the names into programs_ (an std::unordered_set).
-    // Clue: sets use insert(x), not push_back(x). One-liner: in the member
-    // initializer list,  programs_(programs.begin(), programs.end()).
-    (void)programs;
-}
+AllowlistPolicy::AllowlistPolicy(const std::vector<std::string>& programs)
+    : programs_(programs.begin(), programs.end()) {}
 
 Decision AllowlistPolicy::evaluate(const CommandRequest& req) {
-    // TODO
-    // Clue: test membership with  programs_.count(x) > 0  or
-    // programs_.find(x) != programs_.end().  (contains() is C++20; this
-    // project is C++17.)  Build results with Decision::allow(reason, name())
-    // and Decision::deny(reason, name()). Any non-empty reason is fine;
-    // naming the program ("'rm' is not on the allowlist") helps the user.
-    (void)req;
-    return Decision::deny("not implemented", name());
+    if (programs_.find(req.program) != programs_.end()) {
+        return Decision::allow("'" + req.program + "' is on the allowlist", name());
+    }
+    return Decision::deny("'" + req.program + "' is not on the allowlist", name());
 }
 
 ArgumentPatternPolicy::ArgumentPatternPolicy(std::vector<std::string> patterns)
     : patterns_(std::move(patterns)) {}
 
 Decision ArgumentPatternPolicy::evaluate(const CommandRequest& req) {
-    // TODO: search req.command_line() for each pattern.
-    // Clue: std::string::find returns std::string::npos when it finds
-    // nothing, NOT 0 or false. "if (line.find(p))" is true for almost
-    // everything. Compare with npos.
-    // Clue: skip empty patterns: every string "contains" the empty string.
-    (void)req;
-    return Decision::deny("not implemented", name());
+    const std::string line = req.command_line();
+    for (const std::string& pattern : patterns_) {
+        if (pattern.empty()) {
+            continue;
+        }
+        if (line.find(pattern) != std::string::npos) {
+            return Decision::deny("command matches blocked pattern '" + pattern + "'", name());
+        }
+    }
+    return Decision::allow("command matches no blocked patterns", name());
 }
 
-ConfirmPolicy::ConfirmPolicy(const std::vector<std::string>& programs) {
-    // TODO
-    (void)programs;
-}
+ConfirmPolicy::ConfirmPolicy(const std::vector<std::string>& programs)
+    : programs_(programs.begin(), programs.end()) {}
 
 Decision ConfirmPolicy::evaluate(const CommandRequest& req) {
-    // TODO: Decision::ask(...) for listed programs, Decision::allow(...) otherwise.
-    (void)req;
-    return Decision::deny("not implemented", name());
+    if (programs_.find(req.program) != programs_.end()) {
+        return Decision::ask("'" + req.program + "' requires confirmation", name());
+    }
+    return Decision::allow("'" + req.program + "' does not require confirmation", name());
 }
 
 RateLimitPolicy::RateLimitPolicy(std::size_t max_commands, double window_seconds, const Clock& clock)
