@@ -247,4 +247,96 @@ TEST(lru_capacity_one) {
     CHECK_EQ(c.stats().evictions, std::size_t{1});
 }
 
+TEST(bst_duplicate_insert) {
+    MemoryIndex t;
+
+    // 1. Insert ID 10 with text "original" and verify it succeeds
+    CHECK(t.insert(MemoryRecord{10, "original"}));
+
+    // 2. Insert ID 10 again with text "replacement" and verify it returns false
+    CHECK(!t.insert(MemoryRecord{10, "replacement"}));
+
+    // 3. Verify size is still 1 and find(10) still contains "original"
+    CHECK_EQ(t.size(), std::size_t{1});
+    REQUIRE(t.find(10) != nullptr);
+    CHECK_EQ(t.find(10)->text, std::string("original"));
+}
+
+TEST(bst_remove_leaf) {
+    MemoryIndex t;
+
+    // 1. Insert IDs 20, 10, and 30
+    REQUIRE(t.insert(MemoryRecord{20, "m20"}));
+    REQUIRE(t.insert(MemoryRecord{10, "m10"}));
+    REQUIRE(t.insert(MemoryRecord{30, "m30"}));
+
+    // 2. Remove 10 and verify removal succeeds
+    CHECK(t.remove(10));
+
+    // 3. Check that find(10) returns nullptr, size is 2, and IDs 20 and 30 still exist
+    CHECK(t.find(10) == nullptr);
+    CHECK_EQ(t.size(), std::size_t{2});
+    CHECK(t.find(20) != nullptr);
+    CHECK(t.find(30) != nullptr);
+
+    // 4. Try removing 10 again; verify it returns false and size stays 2
+    CHECK(!t.remove(10));
+    CHECK_EQ(t.size(), std::size_t{2});
+}
+
+TEST(bst_remove_one_child) {
+    MemoryIndex t;
+
+    // 1. Insert IDs 20, 10, and 5 (node 10 has one child: 5)
+    REQUIRE(t.insert(MemoryRecord{20, "m20"}));
+    REQUIRE(t.insert(MemoryRecord{10, "m10"}));
+    REQUIRE(t.insert(MemoryRecord{5, "m5"}));
+
+    // 2. Remove 10 and verify it succeeds
+    CHECK(t.remove(10));
+
+    // 3. Check that 10 is gone, 5 and 20 remain, and size is 2
+    CHECK(t.find(10) == nullptr);
+    CHECK(t.find(5) != nullptr);
+    CHECK(t.find(20) != nullptr);
+    CHECK_EQ(t.size(), std::size_t{2});
+
+    // 4. Check that the in-order traversal returns [5, 20]
+    std::vector<std::uint64_t> ids;
+    t.for_each_in_order([&](const MemoryRecord& r) { ids.push_back(r.id); });
+    CHECK_EQ(ids, (std::vector<std::uint64_t>{5, 20}));
+}
+
+
+
+TEST(bst_clear) {
+    MemoryIndex t;
+
+    // Clearing an already empty tree works safely
+    t.clear();
+    CHECK_EQ(t.size(), std::size_t{0});
+    CHECK_EQ(t.height(), std::size_t{0});
+
+    // Populate the tree
+    REQUIRE(t.insert(MemoryRecord{20, "m20"}));
+    REQUIRE(t.insert(MemoryRecord{10, "m10"}));
+    REQUIRE(t.insert(MemoryRecord{30, "m30"}));
+    CHECK_EQ(t.size(), std::size_t{3});
+    CHECK_EQ(t.height(), std::size_t{2});
+
+    // Clear resets size and height to 0 and removes records
+    t.clear();
+    CHECK_EQ(t.size(), std::size_t{0});
+    CHECK_EQ(t.height(), std::size_t{0});
+    CHECK(t.find(20) == nullptr);
+    CHECK(t.find(10) == nullptr);
+    CHECK(t.find(30) == nullptr);
+
+    // Fresh insertion works after clear()
+    CHECK(t.insert(MemoryRecord{42, "fresh"}));
+    CHECK_EQ(t.size(), std::size_t{1});
+    CHECK_EQ(t.height(), std::size_t{1});
+    REQUIRE(t.find(42) != nullptr);
+    CHECK_EQ(t.find(42)->text, std::string("fresh"));
+}
 int main(int argc, char** argv) { return mt::run_all(argc, argv); }
